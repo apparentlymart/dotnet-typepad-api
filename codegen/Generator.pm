@@ -92,14 +92,14 @@ sub start_namespace_block {
 
 sub start_class_block {
     my ($self, $class_name, $parent_class_name) = @_;
-    $self->start_block("public class $class_name : " . ($parent_class_name ? "$parent_class_name, " : "") . "TypePad.IObject");
+    $self->start_block("public partial class $class_name : " . ($parent_class_name ? "$parent_class_name, " : "") . "TypePad.IObject");
 }
 
 sub write_object_type_class {
     my ($self, $type, $class_name) = @_;
 
     $class_name ||= $self->api_type_as_cs_type($type->{name});
-    my $base_class_name = $type->{parentType} ? api_type_as_cs_type($type->{parentType}) : undef;
+    my $base_class_name = $type->{parentType} ? $self->api_type_as_cs_type($type->{parentType}) : undef;
 
     $self->start_class_block($class_name, $base_class_name);
 
@@ -109,6 +109,16 @@ sub write_object_type_class {
         my $cs_name = ucfirst($property->{name});
         $self->tab_write_line("public $type $cs_name;");
     }
+
+    $self->blank();
+
+    $self->start_block("public void emitAsJSON(System.IO.TextWriter Writer)");
+    
+    $self->end_block();
+
+    $self->start_block("public static $class_name parseFromJSON(System.IO.TextReader Reader)");
+    
+    $self->end_block();
 
     $self->end_block();
 }
@@ -139,6 +149,21 @@ sub api_type_as_cs_type {
     }
     else {
         return "TypePad.ObjectTypes.".$api_type;
+    }
+
+}
+
+sub api_type_needs_generated_class {
+    my ($self, $api_type) = @_;
+
+    if ($api_type =~ m!^(\w+)\<(.*)\>$!) {
+        return 0;
+    }
+    elsif (my $primitive_type = $primitive_type_map{$api_type}) {
+        return 0;
+    }
+    else {
+        return 1;
     }
 
 }
